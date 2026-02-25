@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[project]
+name = "march-machine-learning-mania-2026"
+version = "0.1.0"
+description = "Kaggle March Machine Learning Mania 2026 Code"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "jupyter>=1.1.1",
+    "polars>=1.38.1",
+    "xgboost>=3.2.0",
+]
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
