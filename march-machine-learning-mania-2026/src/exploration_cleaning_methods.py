@@ -109,3 +109,19 @@ def create_team_season_profile(detailed_results_lf: pl.LazyFrame) -> pl.LazyFram
     )
     
     return grouped_lf
+
+def seed_cleaning(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
+    
+    cleaned_seed: pl.LazyFrame = (
+        seed_lf
+            .filter(
+                (pl.col("Season") >= 2015) & (pl.col("Season") != 2020)
+            )
+            .with_columns(
+                pl.col("Seed")
+                .str.replace(r"^[A-Z]*(\d{2})[a,b]*$", r"$1")
+                .cast(pl.Int8)
+            )
+    )
+
+    return cleaned_seed
