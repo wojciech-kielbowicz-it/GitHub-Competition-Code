@@ -86,7 +86,7 @@ def create_team_season_profile(detailed_results_lf: pl.LazyFrame) -> pl.LazyFram
     )
 
     col_to_exclude: list[str] = [
-        "DayNum", "OpponentID", "TeamLoc"
+        "DayNum", "OpponentID", "TeamLoc", 
         "TeamFGM", "TeamFGA", "TeamFGM3", 
         "TeamFGA3", "TeamFTM", "TeamFTA",
         "TeamOR", "TeamDR", "TeamAst", 
@@ -97,9 +97,15 @@ def create_team_season_profile(detailed_results_lf: pl.LazyFrame) -> pl.LazyFram
         "OpponentTO", "OpponentStl", "OpponentBlk", "OpponentPF"
     ]
 
+
     grouped_lf: pl.LazyFrame = (
-        win_los_combined_lf
+        win_los_combined_lf.
+        filter(
+            (pl.col("Season") >= 2015) & (pl.col("Season") != 2020)
+        )
+        .sort(["Season", "TeamID"])
         .group_by(["Season", "TeamID"])
         .agg(cs.numeric().exclude(col_to_exclude).mean())
     )
+    
     return grouped_lf
