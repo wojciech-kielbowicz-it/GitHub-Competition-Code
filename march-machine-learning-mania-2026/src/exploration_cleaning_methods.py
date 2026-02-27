@@ -110,7 +110,7 @@ def create_team_season_profile(detailed_results_lf: pl.LazyFrame) -> pl.LazyFram
     
     return grouped_lf
 
-def seed_cleaning(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
+def clean_seed(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
     
     cleaned_seed: pl.LazyFrame = (
         seed_lf
