@@ -112,12 +112,13 @@ def create_team_season_profile(detailed_results_lf: pl.LazyFrame) -> pl.LazyFram
 
 def clean_seed(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
     """
+    Filters tournament seeds by year and extracts the numerical seed value from alphanumeric strings.
 
     Args:
-        seed_lf (pl.LazyFrame): 
+        seed_lf (pl.LazyFrame): LazyFrame containing tournament seeds (e.g., 'W01', 'Z16a').
 
     Returns:
-        pl.LazyFrame: 
+        pl.LazyFrame: Filtered data from 2015 onwards (excluding 2020) with seeds converted to 8-bit integers.
     """
     cleaned_seed: pl.LazyFrame = (
         seed_lf
@@ -135,13 +136,14 @@ def clean_seed(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
 
 def merge_seed_with_regular(seed_lf: pl.LazyFrame, regular_lf: pl.LazyFrame) -> pl.LazyFrame:
     """
+    Merges tournament seed information into regular season team statistics.
 
     Args:
-        seed_lf (pl.LazyFrame): 
-        regular_lf (pl.LazyFrame): 
+        seed_lf (pl.LazyFrame): LazyFrame containing 'Season', 'TeamID', and their tournament seed.
+        regular_lf (pl.LazyFrame): LazyFrame containing aggregated regular season metrics per team and season.
 
     Returns:
-        pl.LazyFrame: 
+        pl.LazyFrame: The regular season statistics enriched with seed data where available via a left join.
     """
     merged_lf: pl. LazyFrame = regular_lf.join(
         seed_lf,
@@ -153,12 +155,14 @@ def merge_seed_with_regular(seed_lf: pl.LazyFrame, regular_lf: pl.LazyFrame) -> 
 
 def prepare_tourney_matchups(tourney_matchups_lf: pl.LazyFrame) -> pl.LazyFrame:
     """
+    Filters and reshapes tournament results into a balanced binary classification dataset.
 
     Args:
-        tourney_matchups_lf (pl.LazyFrame):
+        tourney_matchups_lf (pl.LazyFrame): Raw tournament match data containing 'WTeamID' and 'LTeamID'.
 
     Returns:
-        pl.LazyFrame: 
+        pl.LazyFrame: A dataset starting from 2015 (excluding 2020) where each game is represented twice 
+        to balance the 'Target' (1 for Team A win, 0 for Team A loss) and IDs are normalized to 'ATeamID' and 'BTeamID'.
     """
     matchups_lf: pl.LazyFrame = (
         tourney_matchups_lf
@@ -210,3 +214,59 @@ def prepare_tourney_matchups(tourney_matchups_lf: pl.LazyFrame) -> pl.LazyFrame:
     matchups_lf: pl.LazyFrame = pl.concat([winner_matchups_lf, beaten_matchups_lf])
 
     return matchups_lf
+
+def finalize_training_data(matchups_lf: pl.LazyFrame, golden_table_lf: pl.LazyFrame) -> pl.LazyFrame:
+    """
+    Enriches match data with seasonal statistics and calculates the differences between Team A and Team B.
+
+    Args:
+        matchups_lf (pl.LazyFrame): LazyFrame containing match data with 'Season', 'ATeamID', and 'BTeamID'.
+        golden_table_lf (pl.LazyFrame): LazyFrame containing seasonal metrics per team, keyed by 'Season' and 'TeamID'.
+
+    Returns:
+        pl.LazyFrame: A dataset where original team-specific stats are replaced by their differences 
+        (suffixed with '_Diff'), while retaining core match identifiers.
+    """
+    final_train_lf: pl.LazyFrame = (
+        matchups_lf
+        .join(
+            golden_table_lf, 
+            left_on=["Season", "ATeamID"], 
+            right_on=["Season", "TeamID"],
+            how="left"
+        )
+        .rename({
+            col: f"{col}_A" for col in golden_table_lf.collect_schema().names()
+            if col not in ["Season", "TeamID"]
+        })
+    )
+
+    final_train_lf = (
+        final_train_lf
+        .join(
+            golden_table_lf, 
+            left_on=["Season", "BTeamID"], 
+            right_on=["Season", "TeamID"], 
+            how="left"
+        )
+        .rename({
+            col: f"{col}_B" for col in golden_table_lf.collect_schema().names() 
+            if col not in ["Season", "TeamID"]
+        })
+    )
+
+    cols_a: list[str] = [c for c in final_train_lf.collect_schema().names() if c.endswith("_A")]
+
+    cols_expr: list[pl.Expr] = [
+        (pl.col(c) - pl.col(c.replace("_A", "_B")))
+        .alias(c.replace("_A", "_Diff"))
+        for c in cols_a
+    ]
+
+    final_train_lf = (
+        final_train_lf
+        .with_columns(cols_expr)
+        .drop(cs.ends_with("_A", "_B"))
+    )
+
+    return final_train_lf
