@@ -125,3 +125,13 @@ def clean_seed(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
     )
 
     return cleaned_seed
+
+def merge_seed_with_regular(seed_lf: pl.LazyFrame, regular_lf: pl.LazyFrame) -> pl.LazyFrame:
+    
+    merged_lf: pl. LazyFrame = regular_lf.join(
+        seed_lf,
+        on=["Season", "TeamID"], 
+        how="left"
+    )
+
+    return merged_lf
