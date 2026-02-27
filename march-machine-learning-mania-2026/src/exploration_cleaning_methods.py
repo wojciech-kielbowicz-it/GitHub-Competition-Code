@@ -111,7 +111,14 @@ def create_team_season_profile(detailed_results_lf: pl.LazyFrame) -> pl.LazyFram
     return grouped_lf
 
 def clean_seed(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
-    
+    """
+
+    Args:
+        seed_lf (pl.LazyFrame): 
+
+    Returns:
+        pl.LazyFrame: 
+    """
     cleaned_seed: pl.LazyFrame = (
         seed_lf
             .filter(
@@ -127,7 +134,15 @@ def clean_seed(seed_lf: pl.LazyFrame) -> pl.LazyFrame:
     return cleaned_seed
 
 def merge_seed_with_regular(seed_lf: pl.LazyFrame, regular_lf: pl.LazyFrame) -> pl.LazyFrame:
-    
+    """
+
+    Args:
+        seed_lf (pl.LazyFrame): 
+        regular_lf (pl.LazyFrame): 
+
+    Returns:
+        pl.LazyFrame: 
+    """
     merged_lf: pl. LazyFrame = regular_lf.join(
         seed_lf,
         on=["Season", "TeamID"], 
@@ -135,3 +150,63 @@ def merge_seed_with_regular(seed_lf: pl.LazyFrame, regular_lf: pl.LazyFrame) -> 
     )
 
     return merged_lf
+
+def prepare_tourney_matchups(tourney_matchups_lf: pl.LazyFrame) -> pl.LazyFrame:
+    """
+
+    Args:
+        tourney_matchups_lf (pl.LazyFrame):
+
+    Returns:
+        pl.LazyFrame: 
+    """
+    matchups_lf: pl.LazyFrame = (
+        tourney_matchups_lf
+            .select(
+                pl.col(["Season", "WTeamID", "LTeamID", "DayNum"])
+            )
+            .filter(
+                (pl.col("Season") >= 2015) & (pl.col("Season") != 2020)
+            )
+    )
+
+    winner_matchups_lf: pl.LazyFrame = (
+        matchups_lf
+        .clone()
+        .rename({
+            "WTeamID": "ATeamID", 
+            "LTeamID": "BTeamID"
+        })
+    )
+
+    winner_matchups_lf = winner_matchups_lf.with_columns(
+        cs.numeric().cast(pl.Int16), 
+        pl.lit(1).alias("Target").cast(pl.Int8)
+    )
+
+    beaten_matchups_lf: pl.LazyFrame = (
+        matchups_lf
+        .clone()
+        .rename({
+            "WTeamID": "BTeamID", 
+            "LTeamID": "ATeamID"
+        })
+    )
+    
+    beaten_matchups_lf = (
+        beaten_matchups_lf
+            .select([
+                "Season", 
+                "ATeamID", 
+                "BTeamID", 
+                "DayNum"
+            ])
+            .with_columns(
+                cs.numeric().cast(pl.Int16), 
+                pl.lit(0).alias("Target").cast(pl.Int8)
+            )
+    )
+
+    matchups_lf: pl.LazyFrame = pl.concat([winner_matchups_lf, beaten_matchups_lf])
+
+    return matchups_lf
