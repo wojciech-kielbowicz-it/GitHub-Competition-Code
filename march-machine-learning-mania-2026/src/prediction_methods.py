@@ -82,3 +82,29 @@ def generate_model(train_data_df: pl.DataFrame) -> xgb.Booster:
 
     model: xgb.Booster = xgb.train(params=parameters, dtrain=dtrain, num_boost_round=100)
     return model
+
+def predict_and_create_submission_data(
+        model: xgb.Booster, feature_cols: list[str], infer_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Generates predictions using a trained XGBoost model and formats them into a competition submission schema.
+
+    Args:
+        model (xgb.Booster): The trained XGBoost model used for inference.
+        feature_cols (list[str]): The list of column names used as features during training.
+        infer_df (pl.DataFrame): The input DataFrame containing features and metadata (Season, ATeamID, BTeamID).
+
+    Returns:
+        pl.DataFrame: A DataFrame containing the 'ID' (formatted as Season_ATeamID_BTeamID) and 'Pred' columns.
+    """
+    dtest: np.ndarray = xgb.DMatrix(infer_df.select(feature_cols).to_numpy())
+    infer_df: pl.DataFrame = infer_df.with_columns(pl.Series("Pred", model.predict(dtest)))
+
+    sub_df: pl.DataFrame = infer_df.with_columns(
+        pl.concat_str(
+            [pl.col("Season").cast(pl.Utf8), 
+             pl.col("ATeamID").cast(pl.Utf8), 
+             pl.col("BTeamID").cast(pl.Utf8)], 
+             separator="_").alias("ID")
+        ).select(["ID", "Pred"])
+    
+    return sub_df
