@@ -2,7 +2,7 @@ import polars as pl
 import numpy as np
 import xgboost as xgb
 
-def create_carthesian_matchup_grid(train_data_lf: pl.LazyFrame) -> pl.DataFrame:
+def create_carthesian_matchup_grid(train_data_df: pl.DataFrame) -> pl.DataFrame:
     """
     Generates a Cartesian product of all possible unique team matchups for the current season.
 
@@ -27,10 +27,10 @@ def create_carthesian_matchup_grid(train_data_lf: pl.LazyFrame) -> pl.DataFrame:
                 in both winning and losing columns for the year 2026.
         """
         extracted_df: pl.DataFrame = (
-            train_data_lf
+            train_data_df
             .filter(pl.col("Season" == current_year))
             .select(pl.col("WTeamID").alias("TeamID"))
-            .vstack(train_data_lf
+            .vstack(train_data_df
                     .filter(pl.col("Season") == current_year)
                     .select(pl.col("LTeamID").alias("TeamID"))
             )
