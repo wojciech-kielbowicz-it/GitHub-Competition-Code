@@ -29,13 +29,13 @@ def create_carthesian_matchup_grid(train_data_df: pl.DataFrame) -> pl.DataFrame:
         """
         extracted_df: pl.DataFrame = (
             train_data_df
-            .filter(pl.col("Season" == current_year))
+            .filter(pl.col("Season") == current_year)
             .select(pl.col("WTeamID").alias("TeamID"))
             .vstack(train_data_df
                     .filter(pl.col("Season") == current_year)
                     .select(pl.col("LTeamID").alias("TeamID"))
             )
-            .unique().collect()
+            .unique()
         )
         return extracted_df
     
@@ -67,14 +67,14 @@ def generate_model(train_data_df: pl.DataFrame) -> xgb.Booster:
     Returns:
         xgb.Booster: The trained XGBoost model object.
     """
-    cols_to_drop: list[str] = ["Season", "ATeamID", "BTeamID", "DayNum", "Target", "Seed"]
+    cols_to_drop: list[str] = ["Season", "ATeamID", "BTeamID", "DayNum", "Target", "Seed_Diff"]
     X_: np.ndarray = train_data_df.drop(cols_to_drop).to_numpy()
     y_: np.ndarray = train_data_df.select("Target").to_numpy().flatten()
     dtrain = xgb.DMatrix(X_, label=y_)
 
     parameters: dict[str, str] = {
         "objective": "binary:logistic", 
-        "eval_metric": "mse", 
+        "eval_metric": "rmse", 
         "max_depth": 4, 
         "learning_rate": 0.05, 
         "seed": 42
