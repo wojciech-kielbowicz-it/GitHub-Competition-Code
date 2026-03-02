@@ -1,4 +1,5 @@
 import polars as pl
+import pandas as pd
 import numpy as np
 import xgboost as xgb
 
@@ -56,3 +57,28 @@ def create_carthesian_matchup_grid(train_data_df: pl.DataFrame) -> pl.DataFrame:
     )
     return grid_df
 
+def generate_model(train_data_df: pl.DataFrame) -> xgb.Booster:
+    """
+    Trains an XGBoost model using the provided Polars DataFrame.
+
+    Args:
+        train_data_df (pl.DataFrame): The input training data containing features and the 'Target' column.
+
+    Returns:
+        xgb.Booster: The trained XGBoost model object.
+    """
+    cols_to_drop: list[str] = ["Season", "ATeamID", "BTeamID", "DayNum", "Target", "Seed"]
+    X_: np.ndarray = train_data_df.drop(cols_to_drop).to_numpy()
+    y_: np.ndarray = train_data_df.select("Target").to_numpy().flatten()
+    dtrain = xgb.DMatrix(X_, label=y_)
+
+    parameters: dict[str, str] = {
+        "objective": "binary:logistic", 
+        "eval_metric": "mse", 
+        "max_depth": 4, 
+        "learning_rate": 0.05, 
+        "seed": 42
+    }
+
+    model: xgb.Booster = xgb.train(params=parameters, dtrain=dtrain, num_boost_round=100)
+    return model
